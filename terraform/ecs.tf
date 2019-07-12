@@ -11,6 +11,37 @@ resource "aws_ecs_cluster" "cluster" {
   }
 }
 
+data "aws_iam_policy_document" "ecs-instance-policy" {
+    statement {
+        actions = ["sts:AssumeRole"]
+
+        principals {
+            type        = "Service"
+            identifiers = ["ec2.amazonaws.com"]
+        }
+    }
+}
+
+resource "aws_iam_role" "ecs-instance-role" {
+    name                = "ecs-instance-role"
+    path                = "/"
+    assume_role_policy  = "${data.aws_iam_policy_document.ecs-instance-policy.json}"
+}
+
+resource "aws_iam_role_policy_attachment" "ecs-instance-role-attachment" {
+    role       = "${aws_iam_role.ecs-instance-role.name}"
+    policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+resource "aws_iam_instance_profile" "ecs-instance-profile" {
+    name = "ecs-instance-profile"
+    path = "/"
+    roles = ["${aws_iam_role.ecs-instance-role.id}"]
+    provisioner "local-exec" {
+      command = "sleep 10"
+    }
+}
+
 data "template_file" "user_data" {
   template = <<-EOT
     echo ECS_CLUSTER=${aws_ecs_cluster.cluster.name} >> /etc/ecs/ecs.config
@@ -22,6 +53,10 @@ resource "aws_launch_template" "launch_template" {
   name = "${var.project_name}-launch-template"
   image_id = "${var.ami_image_id}"
   instance_type = "${var.instance_type}"
+
+  iam_instance_profile {
+    name = "${aws_iam_instance_profile.ecs-instance-profile.name}"
+  }
 
   network_interfaces {
     security_groups = "${var.security_group_ids}"
