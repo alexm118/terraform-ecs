@@ -44,7 +44,11 @@ resource "aws_iam_instance_profile" "ecs-instance-profile" {
 
 data "template_file" "user_data" {
   template = <<-EOT
+    #!/usr/bin/env bash
     echo ECS_CLUSTER=${aws_ecs_cluster.cluster.name} >> /etc/ecs/ecs.config
+    sudo service docker start
+    sudo start ecs
+
   EOT
 }
 
@@ -57,6 +61,8 @@ resource "aws_launch_template" "launch_template" {
   iam_instance_profile {
     name = "${aws_iam_instance_profile.ecs-instance-profile.name}"
   }
+
+  key_name = "${var.keypair}"
 
   network_interfaces {
     security_groups = "${var.security_group_ids}"

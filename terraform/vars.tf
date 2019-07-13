@@ -21,7 +21,7 @@ variable "project_name" {
 
 variable "ami_image_id" {
   description = "AMI ID for ASG"
-  default = "ami-02507631a9f7bc956"
+  default = "ami-0d09143c6fc181fe3"
 }
 
 variable "instance_type" {
@@ -58,4 +58,8 @@ variable "security_group_ids" {
 
 variable "subnet_id" {
   description = "Subnet Ids for launch instance"
+}
+
+variable "keypair" {
+  description = "AWS Keypair to attach to ASG Instances"
 }
