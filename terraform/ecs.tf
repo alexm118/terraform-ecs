@@ -1,7 +1,3 @@
-provider "aws" {
-  region  = "${var.aws_region}"
-}
-
 resource "aws_ecs_cluster" "cluster" {
   name = "${var.cluster_name}"
   tags = {
@@ -52,6 +48,12 @@ data "template_file" "user_data" {
   EOT
 }
 
+data "terraform_remote_state" "vpc" {
+  backend = "atlas"
+  config = {
+    name = "ExcellaCo/tcp-aws"
+  }
+}
 
 resource "aws_launch_template" "launch_template" {
   name = "${var.project_name}-launch-template"
@@ -65,8 +67,8 @@ resource "aws_launch_template" "launch_template" {
   key_name = "${var.keypair}"
 
   network_interfaces {
-    security_groups = "${var.security_group_ids}"
-    subnet_id = "${var.subnet_id}"
+    security_groups = ["${data.terraform_remote_state.vpc.outputs.sgweb_id}"]
+    subnet_id = "${data.terraform_remote_state.vpc.outputs.public-subnet}"
   }
 
   user_data = "${base64encode(data.template_file.user_data.rendered)}"
@@ -82,6 +84,26 @@ resource "aws_launch_template" "launch_template" {
   }
 }
 
+resource "aws_vpc_endpoint" "ecs_endpoint" {
+  vpc_id = "${data.terraform_remote_state.vpc.outputs.vpc_id}"
+  service_name = "com.amazonaws.${var.aws_region}.ecs"
+  vpc_endpoint_type = "Interface"
+
+  security_group_ids = ["${data.terraform_remote_state.vpc.outputs.sgweb_id}"]
+  subnet_ids = [
+    "${data.terraform_remote_state.vpc.outputs.public-subnet}",
+    "${data.terraform_remote_state.vpc.outputs.private-subnet}"
+  ]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${var.project_name}-ECS-VPC-Endpoint"
+    Creator = "${var.creator}"
+    Email = "${var.email}"
+  }
+}
+
 resource "aws_autoscaling_group" "asg" {
   name = "${var.project_name}-ASG"
   availability_zones = "${var.availability_zones}"
@@ -93,6 +115,8 @@ resource "aws_autoscaling_group" "asg" {
       id = "${aws_launch_template.launch_template.id}"
       version = "$Latest"
   }
+
+  depends_on = [aws_vpc_endpoint.ecs_endpoint]
 
   tags = [
       {

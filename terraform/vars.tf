@@ -51,14 +51,14 @@ variable "max_size" {
 }
 
 
-variable "security_group_ids" {
-  description = "Security GroupIds for launch instance"
-  type = list(string)
-}
+# variable "security_group_ids" {
+#   description = "Security GroupIds for launch instance"
+#   type = list(string)
+# }
 
-variable "subnet_id" {
-  description = "Subnet Ids for launch instance"
-}
+# variable "subnet_id" {
+#   description = "Subnet Ids for launch instance"
+# }
 
 variable "keypair" {
   description = "AWS Keypair to attach to ASG Instances"
